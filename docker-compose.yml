@@ -1,0 +1,83 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: healthcare_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: healthcare
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - healthcare_network
+
+  ipfs:
+    image: ipfs/go-ipfs:v0.21.0
+    container_name: healthcare_ipfs
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+      - "5001:5001"
+      - "8080:8080"
+    environment:
+      IPFS_PROFILE: server
+    volumes:
+      - ipfs_data:/data/ipfs
+    networks:
+      - healthcare_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      network: host
+    dns:
+      - 8.8.8.8
+    container_name: healthcare_backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mongodb://admin:password@mongodb:27017/healthcare
+      HEDERA_NETWORK: testnet
+      HEDERA_ACCOUNT_ID: ${HEDERA_ACCOUNT_ID}
+      HEDERA_PRIVATE_KEY: ${HEDERA_PRIVATE_KEY}
+      IPFS_URL: http://ipfs:5001
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
+      SERVER_PORT: 3000
+    depends_on:
+      - mongodb
+      - ipfs
+    volumes:
+      - ./backend:/app
+    networks:
+      - healthcare_network
+
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: healthcare_mongo_express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      - mongodb
+    networks:
+      - healthcare_network
+
+volumes:
+  mongodb_data: {}
+  ipfs_data: {}
+
+networks:
+  healthcare_network:
+    driver: bridge

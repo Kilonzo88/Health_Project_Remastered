@@ -1,0 +1,10 @@
+flutter_linux_3.22.2-stable.tar.xz
+backend/target/
+backend/cert.pem
+backend/key.pem
+backend/.env
+contracts/cache/
+contracts/out/
+contracts/lib/
+flutter/
+*.log
