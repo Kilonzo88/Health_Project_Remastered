@@ -9,6 +9,7 @@ use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 
 use crate::state::AppState;
+use crate::services::AuthService;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthClaims {
@@ -23,7 +24,11 @@ pub struct AuthContext {
 
 
 // Define the authentication middleware
-pub async fn auth_middleware(State(state): State<Arc<AppState>>, mut req: Request, next: Next) -> Result<Response, StatusCode> {
+pub async fn auth_middleware<T: AuthService>(
+    State(state): State<Arc<AppState<T>>>,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
     let token = req.headers()
         .get(header::AUTHORIZATION)
         .and_then(|auth_header| auth_header.to_str().ok())

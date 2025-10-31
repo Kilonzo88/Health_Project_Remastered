@@ -8,9 +8,10 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 use crate::auth::AuthContext;
+use crate::services::AuthServiceImpl;
 
 // Define the high-assurance authentication middleware
-pub async fn high_assurance_auth_middleware(State(state): State<Arc<AppState>>, mut req: Request, next: Next) -> Result<Response, StatusCode> {
+pub async fn high_assurance_auth_middleware(State(state): State<Arc<AppState<AuthServiceImpl>>>, req: Request, next: Next) -> Result<Response, StatusCode> {
     let auth_context = req.extensions().get::<AuthContext>().cloned();
 
     if let Some(auth_context) = auth_context {

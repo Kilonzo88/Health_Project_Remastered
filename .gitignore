@@ -1,10 +1,34 @@
-flutter_linux_3.22.2-stable.tar.xz
-backend/target/
-backend/cert.pem
-backend/key.pem
-backend/.env
-contracts/cache/
-contracts/out/
-contracts/lib/
-flutter/
+# Rust build artifacts
+**/target/
+
+# Environment variables - DO NOT COMMIT
+.env
+.env.local
+**/.env
+**/.env.local
+
+# TLS Certificates - DO NOT COMMIT
+cert.pem
+key.pem
+**/cert.pem
+**/key.pem
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Log files
 *.log
+
+# Flutter SDK - DO NOT COMMIT
+/flutter/
+
+# Large archives
+*.tar.gz
+
+# Contract build outputs
+/contracts/cache/
+/contracts/out/
+/contracts/lib/
+*.tar.xz

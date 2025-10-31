@@ -1,15 +1,13 @@
 use axum::{
-    extract::{Path, State, Extension},
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
 };
-use anyhow::Result;
 use serde::Deserialize;
 
 use crate::models::*;
 use crate::services::*;
 use crate::state::AppState;
-use crate::auth::AuthContext;
 use std::sync::Arc;
 
 
@@ -26,14 +24,33 @@ pub struct RegisterRequest {
     pub public_key_hex: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct GoogleAuthRequest {
+    pub id_token: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PhoneAuthInitiateRequest {
+    pub phone_number: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PhoneAuthVerifyRequest {
+    pub phone_number: String,
+    pub otp: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatRequest {
+    pub prompt: String,
+}
+
 #[axum::debug_handler]
 pub async fn auth_initiate(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<InitiateAuthRequest>,
 ) -> Result<Json<ApiResponse<InitiateAuthResponse>>, StatusCode> {
-    let auth_service = AuthService::new(state.database.clone(), state.hedera_client.clone(), state.config.clone(), state.audit_log_service.clone());
-
-    match auth_service.initiate_auth(&request.email).await {
+    match state.auth_service.initiate_auth(&request.email).await {
         Ok(response) => Ok(Json(ApiResponse::success(response))),
         Err(e) => {
             tracing::error!("Failed to initiate auth: {}", e);
@@ -44,12 +61,10 @@ pub async fn auth_initiate(
 
 #[axum::debug_handler]
 pub async fn register(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<RegisterRequest>,
 ) -> Result<Json<ApiResponse<RegistrationResponse>>, StatusCode> {
-    let auth_service = AuthService::new(state.database.clone(), state.hedera_client.clone(), state.config.clone(), state.audit_log_service.clone());
-
-    match auth_service.register_new_user(request).await {
+    match state.auth_service.register_new_user(request).await {
         Ok(response) => Ok(Json(ApiResponse::success(response))),
         Err(e) => {
             tracing::error!("Failed to register user: {}", e);
@@ -66,11 +81,67 @@ pub async fn step_up_auth() -> Result<Json<ApiResponse<String>>, StatusCode> {
     Ok(Json(ApiResponse::success("Step-up authentication successful".to_string())))
 }
 
+#[axum::debug_handler]
+pub async fn auth_google(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    Json(request): Json<GoogleAuthRequest>,
+) -> Result<Json<ApiResponse<RegistrationResponse>>, StatusCode> {
+    match state.auth_service.authenticate_with_google(request).await {
+        Ok(response) => Ok(Json(ApiResponse::success(response))),
+        Err(e) => {
+            tracing::error!("Failed to authenticate with Google: {}", e);
+            Ok(Json(ApiResponse::error(e.to_string())))
+        }
+    }
+}
+
+#[axum::debug_handler]
+pub async fn auth_phone_initiate(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    Json(request): Json<PhoneAuthInitiateRequest>,
+) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    match state.auth_service.initiate_phone_auth(request).await {
+        Ok(_) => Ok(Json(ApiResponse::success("OTP sent successfully".to_string()))),
+        Err(e) => {
+            tracing::error!("Failed to initiate phone auth: {}", e);
+            Ok(Json(ApiResponse::error(e.to_string())))
+        }
+    }
+}
+
+#[axum::debug_handler]
+pub async fn auth_phone_verify(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    Json(request): Json<PhoneAuthVerifyRequest>,
+) -> Result<Json<ApiResponse<RegistrationResponse>>, StatusCode> {
+    match state.auth_service.verify_phone_auth(request).await {
+        Ok(response) => Ok(Json(ApiResponse::success(response))),
+        Err(e) => {
+            tracing::error!("Failed to verify phone auth: {}", e);
+            Ok(Json(ApiResponse::error(e.to_string())))
+        }
+    }
+}
+
+#[axum::debug_handler]
+pub async fn chat(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    Json(request): Json<ChatRequest>,
+) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    match state.auth_service.ask_gemini(&request.prompt).await {
+        Ok(response) => Ok(Json(ApiResponse::success(response))),
+        Err(e) => {
+            tracing::error!("Failed to ask Gemini: {}", e);
+            Ok(Json(ApiResponse::error(e.to_string())))
+        }
+    }
+}
+
 
 // --- Patient Handlers ---
 #[axum::debug_handler]
 pub async fn get_patient(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Path(patient_did): Path<String>,
 ) -> Result<Json<ApiResponse<Option<Patient>>>, StatusCode> {
     let patient_service = PatientService::new(state.database.clone(), state.config.clone(), state.audit_log_service.clone());
@@ -97,7 +168,7 @@ pub struct CreateEncounterRequest {
 
 #[axum::debug_handler]
 pub async fn create_encounter(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<CreateEncounterRequest>,
 ) -> Result<Json<ApiResponse<Encounter>>, StatusCode> {
     let encounter_service = EncounterService::new(state.database.clone(), state.ipfs_client.clone(), state.config.clone(), state.audit_log_service.clone());
@@ -113,7 +184,7 @@ pub async fn create_encounter(
 
 #[axum::debug_handler]
 pub async fn finalize_encounter(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Path(encounter_id): Path<String>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let encounter_service = EncounterService::new(state.database.clone(), state.ipfs_client.clone(), state.config.clone(), state.audit_log_service.clone());
@@ -140,7 +211,7 @@ pub struct IssueCredentialRequest {
 
 #[axum::debug_handler]
 pub async fn issue_credential(
-    State(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<IssueCredentialRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let vc_service = VerifiableCredentialService::new(

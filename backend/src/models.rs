@@ -89,6 +89,16 @@ pub struct FhirBundle {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Otp {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub phone_number: String,
+    pub otp: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
 // FHIR R4 Models
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FhirPatient {
@@ -311,6 +321,18 @@ pub struct VerifiableCredential {
     pub ipfs_hash: String,
     pub hedera_transaction_id: String,
     pub metadata: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLog {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub did: String,
+    pub action: String,
+    pub timestamp: DateTime<Utc>,
+    pub details: Option<serde_json::Value>,
+    pub is_anchored: bool,
+    pub anchor_batch_id: Option<ObjectId>,
 }
 
 

@@ -13,6 +13,14 @@ pub struct Config {
     pub jwt_expiration_seconds: i64,
     pub ipfs_encryption_key: String,
     pub server_port: u16,
+    pub healthcare_access_control_contract_id: Option<String>,
+    pub verifiable_credentials_contract_id: Option<String>,
+    pub audit_trail_contract_id: Option<String>,
+    pub google_client_id: String,
+    pub twilio_account_sid: String,
+    pub twilio_auth_token: String,
+    pub twilio_phone_number: String,
+    pub gemini_api_key: String,
 }
 
 impl Config {
@@ -42,6 +50,14 @@ impl Config {
                 .unwrap_or_else(|_| "3000".to_string())
                 .parse()
                 .expect("Invalid SERVER_PORT"),
+            healthcare_access_control_contract_id: env::var("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID").ok(),
+            verifiable_credentials_contract_id: env::var("VERIFIABLE_CREDENTIALS_CONTRACT_ID").ok(),
+            audit_trail_contract_id: env::var("AUDIT_TRAIL_CONTRACT_ID").ok(),
+            google_client_id: env::var("GOOGLE_CLIENT_ID").expect("GOOGLE_CLIENT_ID must be set"),
+            twilio_account_sid: env::var("TWILIO_ACCOUNT_SID").expect("TWILIO_ACCOUNT_SID must be set"),
+            twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set"),
+            twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").expect("TWILIO_PHONE_NUMBER must be set"),
+            gemini_api_key: env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
         })
     }
 }

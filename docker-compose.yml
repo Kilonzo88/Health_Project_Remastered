@@ -12,65 +12,54 @@ services:
     volumes:
       - mongodb_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      start_period: 20s
+      retries: 20
     networks:
       - healthcare_network
 
   ipfs:
-    image: ipfs/go-ipfs:v0.21.0
+    image: ipfs/go-ipfs:latest
     container_name: healthcare_ipfs
     restart: unless-stopped
     ports:
-      - "4001:4001"
       - "5001:5001"
       - "8080:8080"
     environment:
-      IPFS_PROFILE: server
+      - IPFS_TELEMETRY=off
     volumes:
       - ipfs_data:/data/ipfs
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs --api=/ip4/127.0.0.1/tcp/5001 id > /dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 120s
+      retries: 20
     networks:
       - healthcare_network
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-      network: host
-    dns:
-      - 8.8.8.8
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: healthcare_backend
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      DATABASE_URL: mongodb://admin:password@mongodb:27017/healthcare
-      HEDERA_NETWORK: testnet
-      HEDERA_ACCOUNT_ID: ${HEDERA_ACCOUNT_ID}
-      HEDERA_PRIVATE_KEY: ${HEDERA_PRIVATE_KEY}
-      IPFS_URL: http://ipfs:5001
-      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
-      SERVER_PORT: 3000
+    env_file: .env
     depends_on:
-      - mongodb
-      - ipfs
+      mongodb:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
     volumes:
-      - ./backend:/app
-    networks:
-      - healthcare_network
-
-  mongo-express:
-    image: mongo-express:1.0.0
-    container_name: healthcare_mongo_express
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: password
-      ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin
-    depends_on:
-      - mongodb
+      - ./scripts/wait-for-services.sh:/app/wait-for-services.sh:ro
+      - ./cert.pem:/app/cert.pem:ro
+      - ./key.pem:/app/key.pem:ro
+    command: ["/bin/sh", "-c", "/app/wait-for-services.sh mongodb ipfs /usr/local/bin/app"]
     networks:
       - healthcare_network
 

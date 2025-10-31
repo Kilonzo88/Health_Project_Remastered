@@ -8,13 +8,15 @@ use hedera::{
     PrivateKey,
     AccountId,
     Hbar,
-    ContractId,
     FileId,
     ContractExecuteTransaction,
     ContractCallQuery,
     TransactionRecordQuery,
     TransactionRecord,
 };
+
+// Re-export types needed by crate root to avoid name collisions with our module name
+pub use hedera::ContractId;
 
 #[derive(Debug, Clone)]
 pub struct HederaClient {
@@ -23,11 +25,15 @@ pub struct HederaClient {
 }
 
 impl HederaClient {
-    pub fn new(account_id: &str, private_key: &str) -> Result<Self> {
+    pub fn new(account_id: &str, private_key: &str, network: &str) -> Result<Self> {
         let account_id: AccountId = account_id.parse()?;
         let private_key: PrivateKey = private_key.parse()?;
 
-        let client = Client::for_testnet();
+        let client = match network {
+            "mainnet" => Client::for_mainnet(),
+            "previewnet" => Client::for_previewnet(),
+            _ => Client::for_testnet(),
+        };
         client.set_operator(account_id, private_key.clone());
 
         Ok(Self { client, operator_private_key: private_key })
@@ -130,6 +136,7 @@ pub struct HealthcareHederaService {
     client: HederaClient,
     access_control_contract: Option<ContractId>,
     credentials_contract: Option<ContractId>,
+    audit_trail_contract: Option<ContractId>,
 }
 
 impl HealthcareHederaService {
@@ -138,7 +145,19 @@ impl HealthcareHederaService {
             client,
             access_control_contract: None,
             credentials_contract: None,
+            audit_trail_contract: None,
         }
+    }
+
+    pub fn set_contract_ids(
+        &mut self,
+        access_control: ContractId,
+        credentials: ContractId,
+        audit_trail: ContractId,
+    ) {
+        self.access_control_contract = Some(access_control);
+        self.credentials_contract = Some(credentials);
+        self.audit_trail_contract = Some(audit_trail);
     }
 
     pub async fn deploy_access_control_contract(&mut self, bytecode: &[u8]) -> Result<ContractId> {
@@ -151,6 +170,24 @@ impl HealthcareHederaService {
         let contract_id = self.client.create_contract(bytecode).await?;
         self.credentials_contract = Some(contract_id.clone());
         Ok(contract_id)
+    }
+
+    pub async fn deploy_audit_trail_contract(&mut self, bytecode: &[u8]) -> Result<ContractId> {
+        let contract_id = self.client.create_contract(bytecode).await?;
+        self.audit_trail_contract = Some(contract_id.clone());
+        Ok(contract_id)
+    }
+
+    pub async fn anchor_log_batch(&self, root_hash: [u8; 32], batch_size: u64) -> Result<TransactionRecord> {
+        if let Some(contract_id) = &self.audit_trail_contract {
+            let mut params = ContractFunctionParameters::new();
+            params.add_bytes(&root_hash);
+            params.add_uint64(batch_size);
+
+            self.client.call_contract(contract_id, "anchorLogBatch", params).await
+        } else {
+            Err(anyhow::anyhow!("AuditTrail contract not deployed"))
+        }
     }
 
     pub async fn store_credential(

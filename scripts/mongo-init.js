@@ -340,3 +340,12 @@ print('Database initialization completed successfully!');
 print('Collections created: patients, practitioners, prescriptions, access_controls, fhir_bundles');
 print('Indexes created for optimal performance');
 print('Validation rules applied to all collections');
+
+// Mark database as ready for dependent services
+db = db.getSiblingDB('healthcare');
+db.createCollection('meta');
+db.meta.updateOne(
+  { key: 'ready' },
+  { $set: { key: 'ready', value: true, at: new Date() } },
+  { upsert: true }
+);
