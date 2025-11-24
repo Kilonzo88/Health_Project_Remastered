@@ -74,16 +74,13 @@ async fn main() -> anyhow::Result<()> {
 
     // --- Configure Contracts ---
     let access_control_contract_id = ContractId::from_str(
-        config.healthcare_access_control_contract_id.as_deref()
-            .ok_or_else(|| anyhow::anyhow!("Healthcare access control contract ID not set"))?
+        &config.healthcare_access_control_contract_id
     )?;
     let credentials_contract_id = ContractId::from_str(
-        config.verifiable_credentials_contract_id.as_deref()
-            .ok_or_else(|| anyhow::anyhow!("Verifiable credentials contract ID not set"))?
+        &config.verifiable_credentials_contract_id
     )?;
     let audit_trail_contract_id = ContractId::from_str(
-        config.audit_trail_contract_id.as_deref()
-            .ok_or_else(|| anyhow::anyhow!("Audit trail contract ID not set"))?
+        &config.audit_trail_contract_id
     )?;
 
     hedera_service.set_contract_ids(

@@ -13,9 +13,9 @@ pub struct Config {
     pub jwt_expiration_seconds: i64,
     pub ipfs_encryption_key: String,
     pub server_port: u16,
-    pub healthcare_access_control_contract_id: Option<String>,
-    pub verifiable_credentials_contract_id: Option<String>,
-    pub audit_trail_contract_id: Option<String>,
+    pub healthcare_access_control_contract_id: String,
+    pub verifiable_credentials_contract_id: String,
+    pub audit_trail_contract_id: String,
     pub google_client_id: String,
     pub twilio_account_sid: String,
     pub twilio_auth_token: String,
@@ -50,9 +50,12 @@ impl Config {
                 .unwrap_or_else(|_| "3000".to_string())
                 .parse()
                 .expect("Invalid SERVER_PORT"),
-            healthcare_access_control_contract_id: env::var("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID").ok(),
-            verifiable_credentials_contract_id: env::var("VERIFIABLE_CREDENTIALS_CONTRACT_ID").ok(),
-            audit_trail_contract_id: env::var("AUDIT_TRAIL_CONTRACT_ID").ok(),
+            healthcare_access_control_contract_id: env::var("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID")
+                .expect("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID must be set"),
+            verifiable_credentials_contract_id: env::var("VERIFIABLE_CREDENTIALS_CONTRACT_ID")
+                .expect("VERIFIABLE_CREDENTIALS_CONTRACT_ID must be set"),
+            audit_trail_contract_id: env::var("AUDIT_TRAIL_CONTRACT_ID")
+                .expect("AUDIT_TRAIL_CONTRACT_ID must be set"),
             google_client_id: env::var("GOOGLE_CLIENT_ID").expect("GOOGLE_CLIENT_ID must be set"),
             twilio_account_sid: env::var("TWILIO_ACCOUNT_SID").expect("TWILIO_ACCOUNT_SID must be set"),
             twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set"),
