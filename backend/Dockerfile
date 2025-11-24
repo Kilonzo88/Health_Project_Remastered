@@ -33,20 +33,13 @@ RUN cargo build --release
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
-# Install runtime deps (added mongosh and wget for wait script)
+# Install runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 netcat-openbsd curl wget ca-certificates gnupg \
-    && curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg \
-    && echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list \
-    && apt-get update \
-    && apt-get install -y mongodb-mongosh \
+    libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder
 COPY --from=builder /app/target/release/healthcare-backend /usr/local/bin/app
-
-# Copy certs from project root
-COPY cert.pem key.pem /app/
 
 # Run
 CMD ["/usr/local/bin/app"]
