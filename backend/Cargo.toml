@@ -4,15 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 # Web framework
-axum = { version = "0.8", features = ["macros", "tracing"] }
-tokio = "1.32.0"
+axum = { version = "0.7", features = ["macros", "tracing"] }
+tokio = { version = "1.0", features = ["full"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-shuttle-runtime = "0.57.0"
-shuttle-axum = "0.57.0"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -23,7 +22,7 @@ mongodb = "2.8"
 bson = "2.8"
 
 # Blockchain
-hedera = { version = "0.33.0", default-features = false }
+hedera = "0.33.0"
 # IPFS client (using HTTP client for now)
 # ipfs-api = "0.1"  # This crate doesn't exist yet
 
@@ -42,6 +41,7 @@ thiserror = "1.0"
 
 # Configuration
 config = "0.14"
+dotenv = "0.15"
 
 # UUID
 uuid = { version = "1.0", features = ["v4", "serde"] }
@@ -72,10 +72,6 @@ rs_merkle = "1.2.1"
 blake3 = "1.5.0"
 google-jwt-signin = "0.5.4"
 twilio = "0.1.0"
-
-[build-dependencies]
-tonic-build = "0.12.3"
-prost = "0.12.6"
 
 [dev-dependencies]
 mockall = "0.11.0"

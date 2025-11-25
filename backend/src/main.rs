@@ -3,10 +3,11 @@ use std::sync::Arc;
 use std::str::FromStr;
 use tokio::time::{self, Duration};
 use tower_http::cors::CorsLayer;
-use tracing;
-use shuttle_runtime::SecretStore;
-
+use tracing_subscriber;
+use dotenv;
 use crate::hedera::ContractId;
+use axum_server::tls_rustls::RustlsConfig;
+use axum_server::bind_rustls;
 
 mod auth_plus;
 mod auth;
@@ -38,52 +39,49 @@ use state::AppState;
 use services::{AuthService, AuthServiceImpl};
 use twilio::TwilioService;
 
-#[shuttle_runtime::main]
-async fn main(
-    #[shuttle_runtime::Secrets] secrets: SecretStore,
-) -> shuttle_axum::ShuttleAxum {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
 
-    // Load configuration from secrets
-    let config = Arc::new(Config {
-        database_url: secrets.get("DATABASE_URL").expect("DATABASE_URL must be set"),
-        hedera_network: secrets.get("HEDERA_NETWORK").unwrap_or_else(|| "testnet".to_string()),
-        hedera_account_id: secrets.get("HEDERA_ACCOUNT_ID").expect("HEDERA_ACCOUNT_ID must be set"),
-        hedera_private_key: secrets.get("HEDERA_PRIVATE_KEY").expect("HEDERA_PRIVATE_KEY must be set"),
-        ipfs_url: secrets.get("IPFS_URL").unwrap_or_else(|| "http://localhost:5001".to_string()),
-        jwt_secret: secrets.get("JWT_SECRET").expect("JWT_SECRET must be set"),
-        jwt_expiration_seconds: secrets.get("JWT_EXPIRATION_SECONDS").unwrap_or_else(|| "86400".to_string()).parse().expect("Invalid JWT_EXPIRATION_SECONDS"),
-        ipfs_encryption_key: secrets.get("IPFS_ENCRYPTION_KEY").expect("IPFS_ENCRYPTION_KEY must be set"),
-        server_port: secrets.get("SERVER_PORT").unwrap_or_else(|| "3000".to_string()).parse().expect("Invalid SERVER_PORT"),
-        healthcare_access_control_contract_id: secrets.get("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID").expect("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID must be set"),
-        verifiable_credentials_contract_id: secrets.get("VERIFIABLE_CREDENTIALS_CONTRACT_ID").expect("VERIFIABLE_CREDENTIALS_CONTRACT_ID must be set"),
-        audit_trail_contract_id: secrets.get("AUDIT_TRAIL_CONTRACT_ID").expect("AUDIT_TRAIL_CONTRACT_ID must be set"),
-        google_client_id: secrets.get("GOOGLE_CLIENT_ID").expect("GOOGLE_CLIENT_ID must be set"),
-        twilio_account_sid: secrets.get("TWILIO_ACCOUNT_SID").expect("TWILIO_ACCOUNT_SID must be set"),
-        twilio_auth_token: secrets.get("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set"),
-        twilio_phone_number: secrets.get("TWILIO_PHONE_NUMBER").expect("TWILIO_PHONE_NUMBER must be set"),
-        gemini_api_key: secrets.get("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
-    });
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter("healthcare_backend=debug,tower_http=debug")
+        .init();
 
-    // Initialize database
-    let database = Arc::new(Database::new(&config.database_url).await.expect("Failed to connect to database"));
+    // Load configuration
+    let config = Arc::new(Config::load()?);
+    
+    // Initialize database with retry logic
+    let database = loop {
+        match Database::new(&config.database_url).await {
+            Ok(db) => {
+                tracing::info!("Successfully connected to the database.");
+                break Arc::new(db);
+            }
+            Err(e) => {
+                tracing::error!("Failed to connect to database: {}. Retrying in 5 seconds...", e);
+                time::sleep(Duration::from_secs(5)).await;
+            }
+        }
+    };
 
     // Initialize IPFS client
     let ipfs_client = Arc::new(IpfsClient::new(&config.ipfs_url));
 
     // Initialize Hedera client
-    let hedera_client = Arc::new(HederaClient::new(&config.hedera_account_id, &config.hedera_private_key, &config.hedera_network).expect("Failed to create Hedera client"));
+    let hedera_client = Arc::new(HederaClient::new(&config.hedera_account_id, &config.hedera_private_key, &config.hedera_network)?);
     let mut hedera_service = HealthcareHederaService::new((*hedera_client).clone());
 
     // --- Configure Contracts ---
     let access_control_contract_id = ContractId::from_str(
         &config.healthcare_access_control_contract_id
-    ).expect("Failed to parse access control contract ID");
+    )?;
     let credentials_contract_id = ContractId::from_str(
         &config.verifiable_credentials_contract_id
-    ).expect("Failed to parse credentials contract ID");
+    )?;
     let audit_trail_contract_id = ContractId::from_str(
         &config.audit_trail_contract_id
-    ).expect("Failed to parse audit trail contract ID");
+    )?;
 
     hedera_service.set_contract_ids(
         access_control_contract_id,
@@ -109,6 +107,18 @@ async fn main(
         auditing_service: auditing_service.clone(),
         auth_service,
         twilio_service,
+    });
+
+    // --- Spawn Background Tasks ---
+    let audit_handle = tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(3600)); // Anchor logs every hour
+        loop {
+            interval.tick().await;
+            tracing::info!("Running periodic audit log anchoring...");
+            if let Err(e) = auditing_service.anchor_audit_logs().await {
+                tracing::error!("Failed to anchor audit logs: {}", e);
+            }
+        }
     });
 
     // --- Protected Routes ---
@@ -142,7 +152,24 @@ async fn main(
         .layer(CorsLayer::permissive())
         .with_state(app_state.clone());
 
-    Ok(app.into())
+    // Configure TLS
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], app_state.config.server_port));
+    let tls_config = RustlsConfig::from_pem_file(
+        "cert.pem",
+        "key.pem",
+    )
+    .await?;
+
+    tracing::info!("Server running on https://{}", addr);
+    
+    bind_rustls(addr, tls_config)
+        .serve(app.into_make_service())
+        .await?;
+    
+    // Cleanly shut down background tasks
+    audit_handle.abort();
+
+    Ok(())
 }
 
 async fn health_check() -> Result<Json<serde_json::Value>, StatusCode> {
