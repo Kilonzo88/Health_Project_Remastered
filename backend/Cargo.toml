@@ -23,7 +23,7 @@ mongodb = "2.8"
 bson = "2.8"
 
 # Blockchain
-hedera = "0.33.0"
+hedera = { version = "0.33.0", default-features = false }
 # IPFS client (using HTTP client for now)
 # ipfs-api = "0.1"  # This crate doesn't exist yet
 
@@ -72,6 +72,10 @@ rs_merkle = "1.2.1"
 blake3 = "1.5.0"
 google-jwt-signin = "0.5.4"
 twilio = "0.1.0"
+
+[build-dependencies]
+tonic-build = "0.12.3"
+prost = "0.12.6"
 
 [dev-dependencies]
 mockall = "0.11.0"
