@@ -21,6 +21,7 @@ pub struct Config {
     pub twilio_auth_token: String,
     pub twilio_phone_number: String,
     pub gemini_api_key: String,
+    pub use_tls: bool,
 }
 
 impl Config {
@@ -61,6 +62,10 @@ impl Config {
             twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set"),
             twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").expect("TWILIO_PHONE_NUMBER must be set"),
             gemini_api_key: env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
+            use_tls: env::var("USE_TLS")
+                .unwrap_or_else(|_| "true".to_string())
+                .parse()
+                .expect("Invalid USE_TLS value"),
         })
     }
 }

@@ -1,13 +1,15 @@
 use axum::{http::StatusCode, response::Json, routing::{get, post}, Router, middleware};
 use std::sync::Arc;
 use std::str::FromStr;
+use tokio::net::TcpListener;
 use tokio::time::{self, Duration};
 use tower_http::cors::CorsLayer;
 use tracing_subscriber;
 use dotenv;
 use crate::hedera::ContractId;
-use axum_server::tls_rustls::RustlsConfig;
-use axum_server::bind_rustls;
+
+#[cfg(feature = "tls")]
+use axum_server::{tls_rustls::RustlsConfig, bind_rustls};
 
 mod auth_plus;
 mod auth;
@@ -152,19 +154,35 @@ async fn main() -> anyhow::Result<()> {
         .layer(CorsLayer::permissive())
         .with_state(app_state.clone());
 
-    // Configure TLS
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], app_state.config.server_port));
-    let tls_config = RustlsConfig::from_pem_file(
-        "cert.pem",
-        "key.pem",
-    )
-    .await?;
 
-    tracing::info!("Server running on https://{}", addr);
-    
-    bind_rustls(addr, tls_config)
-        .serve(app.into_make_service())
-        .await?;
+    if app_state.config.use_tls {
+        #[cfg(feature = "tls")]
+        {
+            // Configure TLS
+            let tls_config = axum_server::tls_rustls::RustlsConfig::from_pem_file(
+                "cert.pem",
+                "key.pem",
+            )
+            .await?;
+
+            tracing::info!("Server running on https://{}", addr);
+            
+            axum_server::bind_rustls(addr, tls_config)
+                .serve(app.into_make_service())
+                .await?;
+        }
+        #[cfg(not(feature = "tls"))]
+        {
+            tracing::warn!("TLS is enabled in the configuration, but the `tls` feature is not compiled. Falling back to HTTP.");
+            let listener = TcpListener::bind(addr).await?;
+            axum::serve(listener, app.into_make_service()).await?;
+        }
+    } else {
+        tracing::info!("Server running on http://{}", addr);
+        let listener = TcpListener::bind(addr).await?;
+        axum::serve(listener, app.into_make_service()).await?;
+    }
     
     // Cleanly shut down background tasks
     audit_handle.abort();
