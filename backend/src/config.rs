@@ -17,9 +17,6 @@ pub struct Config {
     pub verifiable_credentials_contract_id: String,
     pub audit_trail_contract_id: String,
     pub google_client_id: String,
-    pub twilio_account_sid: String,
-    pub twilio_auth_token: String,
-    pub twilio_phone_number: String,
     pub gemini_api_key: String,
     pub use_tls: bool,
 }
@@ -58,9 +55,6 @@ impl Config {
             audit_trail_contract_id: env::var("AUDIT_TRAIL_CONTRACT_ID")
                 .expect("AUDIT_TRAIL_CONTRACT_ID must be set"),
             google_client_id: env::var("GOOGLE_CLIENT_ID").expect("GOOGLE_CLIENT_ID must be set"),
-            twilio_account_sid: env::var("TWILIO_ACCOUNT_SID").expect("TWILIO_ACCOUNT_SID must be set"),
-            twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").expect("TWILIO_AUTH_TOKEN must be set"),
-            twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").expect("TWILIO_PHONE_NUMBER must be set"),
             gemini_api_key: env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
             use_tls: env::var("USE_TLS")
                 .unwrap_or_else(|_| "true".to_string())
