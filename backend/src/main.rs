@@ -32,7 +32,7 @@ use crate::services::hedera::{HederaClient, HealthcareHederaService};
 use crate::state::AppState;
 use crate::services::{AuthService, AuthServiceImpl, PatientService, EncounterService, VerifiableCredentialService};
 use crate::services::twilio::TwilioService;
-use crate::api::middleware::auth::{auth_middleware, high_assurance_auth_middleware};
+use crate::api::middleware::jwt_auth::{auth_middleware, high_assurance_auth_middleware};
 
 
 #[tokio::main]
