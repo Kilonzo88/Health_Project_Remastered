@@ -37,7 +37,7 @@ use crate::api::middleware::auth::auth_middleware;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenv::from_path("../.env").ok();
 
     // Initialize tracing
     tracing_subscriber::fmt()
