@@ -200,6 +200,18 @@ pub async fn finalize_encounter(
 
 
 // --- Verifiable Credential Handlers ---
+
+#[derive(Debug, Deserialize)]
+pub struct GoogleToken {
+    token: String,
+}
+
+#[axum::debug_handler]
+pub async fn verify_google_token(Json(token): Json<GoogleToken>) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    // TODO: Implement token verification logic
+    Ok(Json(ApiResponse::success("Hello from verify_google_token".to_string())))
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct IssueCredentialRequest {
     pub subject_did: String,
