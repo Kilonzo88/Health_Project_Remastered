@@ -6,40 +6,34 @@ use tokio::time::{self, Duration};
 use tower_http::cors::CorsLayer;
 use tracing_subscriber;
 use dotenv;
-use crate::hedera::ContractId;
+use crate::services::hedera::ContractId;
 
 #[cfg(feature = "tls")]
 use axum_server::{tls_rustls::RustlsConfig, bind_rustls};
 
-mod auth_plus;
-mod auth;
-mod config;
-mod database;
-mod did;
-mod fhir;
-mod handlers;
-mod hedera;
-mod ipfs;
-mod models;
+mod api;
 mod services;
-mod state;
+mod models;
+// mod auth;
 mod utils;
-mod audit_log;
 mod auditing;
-mod twilio;
+mod database;
+mod config;
+mod state;
 
-use crate::audit_log::AuditLogService;
-use crate::auditing::AuditingService;
-use crate::auth::auth_middleware;
-use crate::auth_plus::high_assurance_auth_middleware;
-use config::Config;
-use database::Database;
-use handlers::*;
-use ipfs::IpfsClient;
-use hedera::{HederaClient, HealthcareHederaService};
-use state::AppState;
-use services::{AuthService, AuthServiceImpl};
-use twilio::TwilioService;
+use crate::auditing::{audit_log::AuditLogService, AuditingService};
+// use crate::auth::auth_middleware;
+// use crate::auth::high_assurance_auth_middleware;
+use crate::config::Config;
+use crate::database::Database;
+use crate::api::handlers::*;
+use crate::services::ipfs::IpfsClient;
+use crate::services::hedera::{HederaClient, HealthcareHederaService};
+use crate::state::AppState;
+use crate::services::{AuthService, AuthServiceImpl};
+use crate::services::twilio::TwilioService;
+use crate::api::middleware::auth::auth_middleware;
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -142,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/register", post(register))
         .route("/api/auth/step-up", post(step_up_auth))
         .route("/api/auth/google", post(auth_google))
+        .route("/api/auth/google/verify", post(verify_google_token))
         .route("/api/auth/phone/initiate", post(auth_phone_initiate))
         .route("/api/auth/phone/verify", post(auth_phone_verify))
         .route("/api/chat", post(chat));
