@@ -9,6 +9,7 @@ use crate::models::*;
 use crate::services::*;
 use crate::state::AppState;
 use std::sync::Arc;
+use crate::services::ask_gemini;
 
 
 // --- Auth Handlers ---
@@ -128,7 +129,7 @@ pub async fn chat(
     State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<ChatRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match state.auth_service.ask_gemini(&request.prompt).await {
+    match ask_gemini(&request.prompt, &state.config).await {
         Ok(response) => Ok(Json(ApiResponse::success(response))),
         Err(e) => {
             tracing::error!("Failed to ask Gemini: {}", e);
@@ -144,9 +145,7 @@ pub async fn get_patient(
     State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Path(patient_did): Path<String>,
 ) -> Result<Json<ApiResponse<Option<Patient>>>, StatusCode> {
-    let patient_service = PatientService::new(state.database.clone(), state.config.clone(), state.audit_log_service.clone());
-    
-    match patient_service.get_patient(&patient_did).await {
+    match state.patient_service.get_patient(&patient_did).await {
         Ok(patient) => Ok(Json(ApiResponse::success(patient))),
         Err(e) => {
             tracing::error!("Failed to get patient: {}", e);
@@ -171,9 +170,7 @@ pub async fn create_encounter(
     State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<CreateEncounterRequest>,
 ) -> Result<Json<ApiResponse<Encounter>>, StatusCode> {
-    let encounter_service = EncounterService::new(state.database.clone(), state.ipfs_client.clone(), state.config.clone(), state.audit_log_service.clone());
-
-    match encounter_service.create_encounter(request).await {
+    match state.encounter_service.create_encounter(request).await {
         Ok(encounter) => Ok(Json(ApiResponse::success(encounter))),
         Err(e) => {
             tracing::error!("Failed to create encounter: {}", e);
@@ -187,9 +184,7 @@ pub async fn finalize_encounter(
     State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Path(encounter_id): Path<String>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let encounter_service = EncounterService::new(state.database.clone(), state.ipfs_client.clone(), state.config.clone(), state.audit_log_service.clone());
-
-    match encounter_service.finalize_encounter(&encounter_id).await {
+    match state.encounter_service.finalize_encounter(&encounter_id).await {
         Ok(ipfs_hash) => Ok(Json(ApiResponse::success(ipfs_hash))),
         Err(e) => {
             tracing::error!("Failed to finalize encounter: {}", e);
@@ -207,9 +202,17 @@ pub struct GoogleToken {
 }
 
 #[axum::debug_handler]
-pub async fn verify_google_token(Json(token): Json<GoogleToken>) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    // TODO: Implement token verification logic
-    Ok(Json(ApiResponse::success("Hello from verify_google_token".to_string())))
+pub async fn verify_google_token(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    Json(token): Json<GoogleToken>,
+) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    match state.auth_service.verify_google_token(&token.token).await {
+        Ok(claims) => Ok(Json(ApiResponse::success(claims.email.unwrap_or_default()))),
+        Err(e) => {
+            tracing::error!("Failed to verify Google token: {}", e);
+            Ok(Json(ApiResponse::error("Invalid Google token".to_string())))
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -226,14 +229,7 @@ pub async fn issue_credential(
     State(state): State<Arc<AppState<AuthServiceImpl>>>,
     Json(request): Json<IssueCredentialRequest>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    let vc_service = VerifiableCredentialService::new(
-        state.database.clone(),
-        state.ipfs_client.clone(),
-        state.hedera_service.clone(),
-        state.audit_log_service.clone(),
-    );
-
-    match vc_service.issue_credential(request).await {
+    match state.vc_service.issue_credential(request).await {
         Ok(transaction_id) => Ok(Json(ApiResponse::success(transaction_id))),
         Err(e) => {
             tracing::error!("Failed to issue credential: {}", e);

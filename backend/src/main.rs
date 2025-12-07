@@ -30,9 +30,9 @@ use crate::api::handlers::*;
 use crate::services::ipfs::IpfsClient;
 use crate::services::hedera::{HederaClient, HealthcareHederaService};
 use crate::state::AppState;
-use crate::services::{AuthService, AuthServiceImpl};
+use crate::services::{AuthService, AuthServiceImpl, PatientService, EncounterService, VerifiableCredentialService};
 use crate::services::twilio::TwilioService;
-use crate::api::middleware::auth::auth_middleware;
+use crate::api::middleware::auth::{auth_middleware, high_assurance_auth_middleware};
 
 
 #[tokio::main]
@@ -92,6 +92,9 @@ async fn main() -> anyhow::Result<()> {
     let auditing_service = Arc::new(AuditingService::new(database.clone(), hedera_service.clone()));
     let twilio_service = Arc::new(TwilioService::new(&config));
     let auth_service = Arc::new(AuthServiceImpl::new(database.clone(), hedera_client.clone(), config.clone(), audit_log_service.clone(), twilio_service.clone()));
+    let patient_service = Arc::new(PatientService::new(database.clone(), config.clone(), audit_log_service.clone()));
+    let encounter_service = Arc::new(EncounterService::new(database.clone(), ipfs_client.clone(), config.clone(), audit_log_service.clone()));
+    let vc_service = Arc::new(VerifiableCredentialService::new(database.clone(), ipfs_client.clone(), hedera_service.clone(), audit_log_service.clone()));
     
     let app_state = Arc::new(AppState {
         database: database.clone(),
@@ -103,6 +106,9 @@ async fn main() -> anyhow::Result<()> {
         auditing_service: auditing_service.clone(),
         auth_service,
         twilio_service,
+        patient_service,
+        encounter_service,
+        vc_service,
     });
 
     // --- Spawn Background Tasks ---
