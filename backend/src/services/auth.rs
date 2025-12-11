@@ -114,11 +114,18 @@ impl AuthService for AuthServiceImpl {
 
     #[cfg(not(feature = "test"))]
     async fn authenticate_with_google(&self, request: GoogleAuthRequest) -> anyhow::Result<RegistrationResponse> {
+
         let client = Client::new(&self.config.google_client_id);
         let id_token = client.verify_id_token(&request.id_token)?;
         let email = id_token.payload.email.as_ref().unwrap();
 
         if let Some(patient) = self.db.get_patient_by_email(email, &self.config.ipfs_encryption_key).await? {
+
+        let claims = self.verify_google_token(&request.id_token).await?;
+        let email = claims.email.as_ref().unwrap();
+
+        if let Some(patient) = self.db.get_patient_by_email(email, &self.config.ipfs_encryption_key).await? {
+            tracing::debug!("Existing user {} authenticated with Google. DID: {}", email, patient.did);
             let expiration = Utc::now()
                 .checked_add_signed(Duration::seconds(self.config.jwt_expiration_seconds))
                 .expect("valid timestamp")
@@ -144,8 +151,12 @@ impl AuthService for AuthServiceImpl {
                 id: Uuid::new_v4().to_string(),
                 name: vec![FhirHumanName {
                     r#use: Some("official".to_string()),
+
                     family: id_token.payload.name.clone(),
                     given: vec![id_token.payload.name.clone().unwrap_or_default()],
+
+                    family: claims.family_name.clone(),
+                    given: vec![claims.given_name.clone().unwrap_or_default()],
                     ..Default::default()
                 }],
                 telecom: vec![FhirContactPoint {
@@ -164,6 +175,10 @@ impl AuthService for AuthServiceImpl {
             };
             self.db.create_patient(&patient, &self.config.ipfs_encryption_key).await?;
             self.audit_log_service.log(&did, "register_new_user_google", None).await;
+
+
+            tracing::debug!("New user {} registered with Google. DID: {}", email, did);
+
             let expiration = Utc::now()
                 .checked_add_signed(Duration::seconds(self.config.jwt_expiration_seconds))
                 .expect("valid timestamp")
