@@ -6,18 +6,18 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 use serde_json::json;
+use tracing; // Added
+use hex; // Added
 
 use crate::auditing::{AuditLogService, AuditingService};
 use crate::api::middleware::auth::AuthClaims;
 use crate::config::Config;
 use crate::database::Database;
-use crate::did::DidManager;
-use crate::fhir::FhirManager;
+use crate::services::did::DidManager; // Corrected path
 use crate::api::handlers::{CreateEncounterRequest, IssueCredentialRequest, RegisterRequest, GoogleAuthRequest, PhoneAuthInitiateRequest, PhoneAuthVerifyRequest};
-use crate::hedera::{HealthcareHederaService, HederaClient};
-use crate::ipfs::IpfsClient;
+use crate::hedera::HederaClient; // Removed HealthcareHederaService
 use crate::models::*;
-use crate::twilio::TwilioService;
+use crate::services::twilio::TwilioService; // Corrected path
 use crate::utils;
 
 #[cfg(not(feature = "test"))]
@@ -60,8 +60,8 @@ pub struct InitiateAuthResponse {
 struct GoogleUserInfo {
     email: String,
     name: String,
-    given_name: Option<String>,
     family_name: Option<String>,
+    given_name: Option<String>,
 }
 
 impl AuthService for AuthServiceImpl {
