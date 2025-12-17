@@ -7,11 +7,11 @@ use chrono::Utc;
 
 use crate::config::Config;
 use crate::database::Database;
-use crate::ipfs::IpfsClient;
+use crate::services::ipfs::IpfsClient;
 use crate::models::*;
 use crate::auditing::AuditLogService;
-use crate::api::handlers::{CreateEncounterRequest};
-use crate::fhir::FhirManager;
+use crate::api::handlers::CreateEncounterRequest;
+use crate::services::fhir::FhirManager;
 use crate::utils;
 
 // --- EncounterService ---
