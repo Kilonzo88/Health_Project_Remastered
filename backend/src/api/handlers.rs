@@ -207,7 +207,7 @@ pub async fn verify_google_token(
     Json(token): Json<GoogleToken>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     match state.auth_service.verify_google_token(&token.token).await {
-        Ok(claims) => Ok(Json(ApiResponse::success(claims.email.unwrap_or_default()))),
+        Ok(email) => Ok(Json(ApiResponse::success(email))),
         Err(e) => {
             tracing::error!("Failed to verify Google token: {}", e);
             Ok(Json(ApiResponse::error("Invalid Google token".to_string())))
