@@ -2,10 +2,10 @@
 use std::sync::Arc;
 
 use crate::database::Database;
-use crate::ipfs::IpfsClient;
-use crate::hedera::HealthcareHederaService;
+use crate::services::ipfs::IpfsClient;
+use crate::services::hedera::HealthcareHederaService;
 use crate::auditing::AuditLogService;
-use crate::api::handlers::{IssueCredentialRequest};
+use crate::api::handlers::IssueCredentialRequest;
 
 // --- VerifiableCredentialService ---
 pub struct VerifiableCredentialService {
