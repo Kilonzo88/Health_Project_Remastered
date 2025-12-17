@@ -5,20 +5,18 @@ use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
-use serde_json::json;
-use tracing; // Added
-use hex; // Added
+use tracing;
+use hex;
 
-use crate::auditing::{AuditLogService, AuditingService};
-use crate::api::middleware::auth::AuthClaims;
+use crate::auditing::AuditLogService;
+use crate::api::middleware::jwt_auth::AuthClaims;
 use crate::config::Config;
 use crate::database::Database;
-use crate::services::did::DidManager; // Corrected path
-use crate::api::handlers::{CreateEncounterRequest, IssueCredentialRequest, RegisterRequest, GoogleAuthRequest, PhoneAuthInitiateRequest, PhoneAuthVerifyRequest};
-use crate::hedera::HederaClient; // Removed HealthcareHederaService
+use crate::services::did::DidManager;
+use crate::api::handlers::{RegisterRequest, GoogleAuthRequest, PhoneAuthInitiateRequest, PhoneAuthVerifyRequest};
+use crate::services::hedera::HederaClient;
 use crate::models::*;
-use crate::services::twilio::TwilioService; // Corrected path
-use crate::utils;
+use crate::services::twilio::TwilioService;
 
 #[cfg(not(feature = "test"))]
 use google_jwt_signin::Client;
@@ -28,10 +26,19 @@ use mockall::automock;
 // --- AuthService ---
 #[cfg_attr(feature = "test", automock)]
 pub trait AuthService: Send + Sync {
-    fn new(db: Arc<Database>, hedera_client: Arc<HederaClient>, config: Arc<Config>, audit_log_service: Arc<AuditLogService>) -> Self where Self: Sized;
+    fn new(
+        db: Arc<Database>,
+        hedera_client: Arc<HederaClient>,
+        config: Arc<Config>,
+        audit_log_service: Arc<AuditLogService>,
+        twilio_service: Arc<TwilioService>,
+    ) -> Self
+    where
+        Self: Sized;
     async fn initiate_auth(&self, email: &str) -> anyhow::Result<InitiateAuthResponse>;
     async fn register_new_user(&self, request: RegisterRequest) -> anyhow::Result<RegistrationResponse>;
-    async fn authenticate_with_google(&self, id_token: &str) -> Result<RegistrationResponse>;
+    async fn authenticate_with_google(&self, request: GoogleAuthRequest) -> Result<RegistrationResponse>;
+    async fn verify_google_token(&self, id_token: &str) -> Result<String>;
     async fn get_patient_by_did(&self, did: &str) -> Result<Patient>;
     async fn initiate_phone_auth(&self, request: PhoneAuthInitiateRequest) -> anyhow::Result<()>;
     async fn verify_phone_auth(&self, request: PhoneAuthVerifyRequest) -> anyhow::Result<RegistrationResponse>;
@@ -65,14 +72,19 @@ struct GoogleUserInfo {
 }
 
 impl AuthService for AuthServiceImpl {
-    fn new(db: Arc<Database>, hedera_client: Arc<HederaClient>, config: Arc<Config>, audit_log_service: Arc<AuditLogService>) -> Self {
-        Self { 
-            db, 
-            hedera_client, 
-            config, 
+    fn new(
+        db: Arc<Database>,
+        hedera_client: Arc<HederaClient>,
+        config: Arc<Config>,
+        audit_log_service: Arc<AuditLogService>,
+        twilio_service: Arc<TwilioService>,
+    ) -> Self {
+        Self {
+            db,
+            hedera_client,
+            config,
             audit_log_service,
-            // Temp
-            twilio_service: Arc::new(TwilioService::new(&config)),
+            twilio_service,
         }
     }
 
@@ -120,11 +132,11 @@ impl AuthService for AuthServiceImpl {
     /// Flow: Google ID Token → Verify → Find/Create Patient → Generate JWT
     async fn authenticate_with_google(
         &self,
-        id_token: &str,
+        request: GoogleAuthRequest,
     ) -> Result<RegistrationResponse> {
         // Step 1: Verify Google token and extract user info
         let user_info = self
-            .verify_google_token(id_token)
+            .verify_google_token_internal(&request.id_token)
             .await
             .context("Failed to verify Google token")?;
 
@@ -140,6 +152,14 @@ impl AuthService for AuthServiceImpl {
             .context("Failed to generate JWT")?;
 
         Ok(RegistrationResponse { user: patient, token })
+    }
+
+    async fn verify_google_token(&self, id_token: &str) -> Result<String> {
+        let user_info = self
+            .verify_google_token_internal(id_token)
+            .await
+            .context("Failed to verify Google token")?;
+        Ok(user_info.email)
     }
 
     /// Get patient by their DID (used by middleware to load user from JWT)
@@ -244,7 +264,7 @@ impl AuthServiceImpl {
 
     /// Verify Google ID token and extract user information
     #[cfg(not(feature = "test"))]
-    async fn verify_google_token(&self, id_token: &str) -> Result<GoogleUserInfo> {
+    async fn verify_google_token_internal(&self, id_token: &str) -> Result<GoogleUserInfo> {
         let client = Client::new(&self.config.google_client_id);
         let verified_token = client
             .verify_id_token(id_token)
@@ -264,7 +284,7 @@ impl AuthServiceImpl {
     }
 
     #[cfg(feature = "test")]
-    async fn verify_google_token(&self, _id_token: &str) -> Result<GoogleUserInfo> {
+    async fn verify_google_token_internal(&self, _id_token: &str) -> Result<GoogleUserInfo> {
         Ok(GoogleUserInfo {
             email: "test@example.com".to_string(),
             name: "Test User".to_string(),
