@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use crate::hedera::HederaClient;
+use crate::services::hedera::HederaClient;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DidDocument {
