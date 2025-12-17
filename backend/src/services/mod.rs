@@ -9,7 +9,7 @@ pub mod patient;
 pub mod encounter;
 pub mod vc;
 
-pub use auth::{AuthService, AuthServiceImpl};
+pub use auth::{AuthService, AuthServiceImpl, RegistrationResponse, InitiateAuthResponse};
 pub use patient::PatientService;
 pub use encounter::EncounterService;
 pub use vc::VerifiableCredentialService;
