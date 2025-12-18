@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod did;
+pub mod email;
 pub mod fhir;
 pub mod hedera;
 pub mod ipfs;
@@ -10,6 +11,7 @@ pub mod encounter;
 pub mod vc;
 
 pub use auth::{AuthService, AuthServiceImpl, RegistrationResponse, InitiateAuthResponse};
+pub use email::EmailService;
 pub use patient::PatientService;
 pub use encounter::EncounterService;
 pub use vc::VerifiableCredentialService;
