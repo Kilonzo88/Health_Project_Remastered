@@ -37,7 +37,7 @@ use crate::api::handlers::*;
 use crate::services::ipfs::IpfsClient;
 use crate::services::hedera::{HederaClient, HealthcareHederaService};
 use crate::state::AppState;
-use crate::services::{AuthService, AuthServiceImpl, PatientService, EncounterService, VerifiableCredentialService};
+use crate::services::{AuthService, AuthServiceImpl, PatientService, EncounterService, VerifiableCredentialService, EmailService};
 use crate::services::twilio::TwilioService;
 use crate::api::middleware::jwt_auth::{auth_middleware, high_assurance_auth_middleware};
 
@@ -98,7 +98,15 @@ async fn main() -> anyhow::Result<()> {
     let audit_log_service = Arc::new(AuditLogService::new(database.clone()));
     let auditing_service = Arc::new(AuditingService::new(database.clone(), hedera_service.clone()));
     let twilio_service = Arc::new(TwilioService::new(&config));
-    let auth_service = Arc::new(AuthServiceImpl::new(database.clone(), hedera_client.clone(), config.clone(), audit_log_service.clone(), twilio_service.clone()));
+    let email_service = Arc::new(EmailService::new(Arc::new(config.smtp.clone())));
+    let auth_service = Arc::new(AuthServiceImpl::new(
+        database.clone(), 
+        hedera_client.clone(), 
+        config.clone(), 
+        audit_log_service.clone(), 
+        twilio_service.clone(),
+        email_service.clone(), // Pass email_service here
+    ));
     let patient_service = Arc::new(PatientService::new(database.clone(), config.clone(), audit_log_service.clone()));
     let encounter_service = Arc::new(EncounterService::new(database.clone(), ipfs_client.clone(), config.clone(), audit_log_service.clone()));
     let vc_service = Arc::new(VerifiableCredentialService::new(database.clone(), ipfs_client.clone(), hedera_service.clone(), audit_log_service.clone()));
@@ -112,6 +120,7 @@ async fn main() -> anyhow::Result<()> {
         audit_log_service,
         auditing_service: auditing_service.clone(),
         auth_service,
+        email_service, // Add email_service to AppState
         twilio_service,
         patient_service,
         encounter_service,
