@@ -3,6 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmtpConfig {
+    pub server: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub from_email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub database_url: String,
     pub hedera_network: String,
@@ -22,6 +31,7 @@ pub struct Config {
     pub twilio_phone_number: String,
     pub gemini_api_key: String,
     pub use_tls: bool,
+    pub smtp: SmtpConfig, // Added SmtpConfig here
 }
 
 impl Config {
@@ -66,6 +76,16 @@ impl Config {
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()
                 .expect("Invalid USE_TLS value"),
+            smtp: SmtpConfig { // Populating SmtpConfig
+                server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be set"),
+                port: env::var("SMTP_PORT")
+                    .expect("SMTP_PORT must be set")
+                    .parse()
+                    .expect("Invalid SMTP_PORT"),
+                username: env::var("SMTP_USERNAME").expect("SMTP_USERNAME must be set"),
+                password: env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD must be set"),
+                from_email: env::var("SMTP_FROM_EMAIL").expect("SMTP_FROM_EMAIL must be set"),
+            },
         })
     }
 }
