@@ -1,4 +1,4 @@
-use crate::config::SmtpConfig;
+use crate::config::Config;
 use lazy_static::lazy_static;
 use lettre::{
     message::{header, SinglePart},
@@ -49,12 +49,12 @@ pub struct VerificationEmailContext {
 
 #[derive(Clone)]
 pub struct EmailService {
-    smtp_config: Arc<SmtpConfig>,
+    config: Arc<Config>,
 }
 
 impl EmailService {
-    pub fn new(smtp_config: Arc<SmtpConfig>) -> Self {
-        Self { smtp_config }
+    pub fn new(config: Arc<Config>) -> Self {
+        Self { config }
     }
 
     async fn send_mail<T: Serialize>(
@@ -68,7 +68,7 @@ impl EmailService {
         let html_template = TEMPLATES.render(template_name, &context)?;
 
         let email = Message::builder()
-            .from(self.smtp_config.from_email.parse()?)
+            .from(self.config.smtp.from_email.parse()?)
             .to(to_email.parse()?)
             .subject(subject)
             .header(header::ContentType::TEXT_HTML)
@@ -79,13 +79,13 @@ impl EmailService {
             )?;
 
         let creds = Credentials::new(
-            self.smtp_config.username.clone(),
-            self.smtp_config.password.clone(),
+            self.config.smtp.username.clone(),
+            self.config.smtp.password.clone(),
         );
 
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.smtp_config.server)?
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&self.config.smtp.server)?
             .credentials(creds)
-            .port(self.smtp_config.port)
+            .port(self.config.smtp.port)
             .timeout(Some(std::time::Duration::from_secs(30)))
             .build();
 
@@ -102,10 +102,7 @@ impl EmailService {
     ) {
         let subject = "Email Verification";
         let template_name = "Verification-email.html";
-        // TODO: The base_url should come from a frontend configuration setting.
-        // For now, it's hardcoded for simplicity.
-        let base_url = "http://localhost:3000"; 
-        let verification_link = format!("{}/api/auth/verify?token={}", base_url, token);
+        let verification_link = format!("{}/api/auth/verify?token={}", self.config.frontend_base_url, token);
 
         let context = VerificationEmailContext {
             username: username.to_string(),
