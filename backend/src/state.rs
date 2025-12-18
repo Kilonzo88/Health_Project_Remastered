@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::database::Database;
 use crate::services::ipfs::IpfsClient;
 use crate::services::hedera::{HederaClient, HealthcareHederaService};
-use crate::services::{AuthService, PatientService, EncounterService, VerifiableCredentialService};
+use crate::services::{AuthService, EmailService, PatientService, EncounterService, VerifiableCredentialService};
 use crate::services::twilio::TwilioService;
 
 pub struct AppState<T: AuthService> {
@@ -17,6 +17,7 @@ pub struct AppState<T: AuthService> {
     pub audit_log_service: Arc<AuditLogService>,
     pub auditing_service: Arc<AuditingService>,
     pub auth_service: Arc<T>,
+    pub email_service: Arc<EmailService>,
     pub twilio_service: Arc<TwilioService>,
     pub patient_service: Arc<PatientService>,
     pub encounter_service: Arc<EncounterService>,
