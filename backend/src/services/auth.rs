@@ -16,6 +16,7 @@ use crate::services::did::DidManager;
 use crate::api::handlers::{RegisterRequest, GoogleAuthRequest, PhoneAuthInitiateRequest, PhoneAuthVerifyRequest};
 use crate::services::hedera::HederaClient;
 use crate::models::*;
+use crate::services::email::EmailService;
 use crate::services::twilio::TwilioService;
 
 #[cfg(not(feature = "test"))]
@@ -32,6 +33,7 @@ pub trait AuthService: Send + Sync {
         config: Arc<Config>,
         audit_log_service: Arc<AuditLogService>,
         twilio_service: Arc<TwilioService>,
+        email_service: Arc<EmailService>,
     ) -> Self
     where
         Self: Sized;
@@ -50,6 +52,7 @@ pub struct AuthServiceImpl {
     config: Arc<Config>,
     audit_log_service: Arc<AuditLogService>,
     twilio_service: Arc<TwilioService>,
+    email_service: Arc<EmailService>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,6 +60,7 @@ pub struct RegistrationResponse {
     pub user: Patient,
     pub token: String,
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitiateAuthResponse {
@@ -78,6 +82,7 @@ impl AuthService for AuthServiceImpl {
         config: Arc<Config>,
         audit_log_service: Arc<AuditLogService>,
         twilio_service: Arc<TwilioService>,
+        email_service: Arc<EmailService>,
     ) -> Self {
         Self {
             db,
@@ -85,6 +90,7 @@ impl AuthService for AuthServiceImpl {
             config,
             audit_log_service,
             twilio_service,
+            email_service,
         }
     }
 
