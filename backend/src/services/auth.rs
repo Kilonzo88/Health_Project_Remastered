@@ -128,6 +128,12 @@ impl AuthService for AuthServiceImpl {
         };
         self.db.create_patient(&patient, &self.config.ipfs_encryption_key).await?;
         self.audit_log_service.log(&did, "register_new_user", None).await;
+
+        // --- Send verification and welcome emails (fire and forget) ---
+        let verification_token = Uuid::new_v4().to_string();
+        self.email_service.send_verification_email(&request.email, &request.name, &verification_token);
+        self.email_service.send_welcome_email(&request.email, &request.name);
+
         let token = self.generate_jwt_for_patient(&patient)?;
 
         Ok(RegistrationResponse { user: patient, token })
