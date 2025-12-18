@@ -31,6 +31,7 @@ pub struct Config {
     pub twilio_phone_number: String,
     pub gemini_api_key: String,
     pub use_tls: bool,
+    pub frontend_base_url: String,
     pub smtp: SmtpConfig, // Added SmtpConfig here
 }
 
@@ -39,26 +40,23 @@ impl Config {
         dotenv::dotenv().ok();
         
         Ok(Config {
-            database_url: env::var("DATABASE_URL")
-                .unwrap_or_else(|_| "mongodb://localhost:27017/healthcare".to_string()),
-            hedera_network: env::var("HEDERA_NETWORK")
-                .unwrap_or_else(|_| "testnet".to_string()),
+            database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            hedera_network: env::var("HEDERA_NETWORK").expect("HEDERA_NETWORK must be set"),
             hedera_account_id: env::var("HEDERA_ACCOUNT_ID")
                 .expect("HEDERA_ACCOUNT_ID must be set"),
             hedera_private_key: env::var("HEDERA_PRIVATE_KEY")
                 .expect("HEDERA_PRIVATE_KEY must be set"),
-            ipfs_url: env::var("IPFS_URL")
-                .unwrap_or_else(|_| "http://localhost:5001".to_string()),
+            ipfs_url: env::var("IPFS_URL").expect("IPFS_URL must be set"),
             jwt_secret: env::var("JWT_SECRET")
                 .expect("JWT_SECRET must be set"),
             jwt_expiration_seconds: env::var("JWT_EXPIRATION_SECONDS")
-                .unwrap_or_else(|_| "86400".to_string())
+                .expect("JWT_EXPIRATION_SECONDS must be set")
                 .parse()
                 .expect("Invalid JWT_EXPIRATION_SECONDS"),
             ipfs_encryption_key: env::var("IPFS_ENCRYPTION_KEY")
                 .expect("IPFS_ENCRYPTION_KEY must be set"),
             server_port: env::var("SERVER_PORT")
-                .unwrap_or_else(|_| "3000".to_string())
+                .expect("SERVER_PORT must be set")
                 .parse()
                 .expect("Invalid SERVER_PORT"),
             healthcare_access_control_contract_id: env::var("HEALTHCARE_ACCESS_CONTROL_CONTRACT_ID")
@@ -73,9 +71,10 @@ impl Config {
             twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").expect("TWILIO_PHONE_NUMBER must be set"),
             gemini_api_key: env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
             use_tls: env::var("USE_TLS")
-                .unwrap_or_else(|_| "true".to_string())
+                .expect("USE_TLS must be set")
                 .parse()
                 .expect("Invalid USE_TLS value"),
+            frontend_base_url: env::var("FRONTEND_BASE_URL").expect("FRONTEND_BASE_URL must be set"),
             smtp: SmtpConfig { // Populating SmtpConfig
                 server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be set"),
                 port: env::var("SMTP_PORT")
