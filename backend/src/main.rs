@@ -98,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     let audit_log_service = Arc::new(AuditLogService::new(database.clone()));
     let auditing_service = Arc::new(AuditingService::new(database.clone(), hedera_service.clone()));
     let twilio_service = Arc::new(TwilioService::new(&config));
-    let email_service = Arc::new(EmailService::new(Arc::new(config.smtp.clone())));
+    let email_service = Arc::new(EmailService::new(config.clone()));
     let auth_service = Arc::new(AuthServiceImpl::new(
         database.clone(), 
         hedera_client.clone(), 
