@@ -94,17 +94,17 @@ impl EmailService {
         Ok(())
     }
 
-    pub async fn send_verification_email(
+    pub fn send_verification_email(
         &self,
         to_email: &str,
         username: &str,
         token: &str,
-        base_url: &str,
-    ) -> Result<(), EmailError> {
+    ) {
         let subject = "Email Verification";
         let template_name = "Verification-email.html";
-        // Note: The user mentioned FlutterFlow, the verification link might need to be a deep link.
-        // For now, creating a standard backend verification link.
+        // TODO: The base_url should come from a frontend configuration setting.
+        // For now, it's hardcoded for simplicity.
+        let base_url = "http://localhost:3000"; 
         let verification_link = format!("{}/api/auth/verify?token={}", base_url, token);
 
         let context = VerificationEmailContext {
@@ -112,14 +112,23 @@ impl EmailService {
             verification_link,
         };
 
-        self.send_mail(to_email, subject, template_name, &context).await
+        let email_service = self.clone();
+        let to_email = to_email.to_string();
+        let subject = subject.to_string();
+        let template_name = template_name.to_string();
+        tokio::spawn(async move {
+            tracing::info!("Sending verification email to {}", to_email);
+            if let Err(e) = email_service.send_mail(&to_email, &subject, &template_name, &context).await {
+                tracing::error!("Failed to send verification email to {}: {}", to_email, e);
+            }
+        });
     }
 
-    pub async fn send_welcome_email(
+    pub fn send_welcome_email(
         &self,
         to_email: &str,
         username: &str,
-    ) -> Result<(), EmailError> {
+    ) {
         let subject = "Welcome to Our Application";
         let template_name = "Welcome-email.html";
 
@@ -127,6 +136,13 @@ impl EmailService {
             username: username.to_string(),
         };
 
-        self.send_mail(to_email, subject, template_name, &context).await
+        let email_service = self.clone();
+        let to_email = to_email.to_string();
+        tokio::spawn(async move {
+            tracing::info!("Sending welcome email to {}", to_email);
+            if let Err(e) = email_service.send_mail(&to_email, subject, template_name, &context).await {
+                tracing::error!("Failed to send welcome email to {}: {}", to_email, e);
+            }
+        });
     }
 }
