@@ -125,6 +125,9 @@ impl Database {
             email_hash,
             created_at: patient.created_at,
             updated_at: patient.updated_at,
+            email_verified: patient.email_verified,
+            verification_token: patient.verification_token.clone(),
+            verification_token_expires: patient.verification_token_expires,
         };
 
         collection.insert_one(encrypted_patient, None).await?;
@@ -144,6 +147,9 @@ impl Database {
                 fhir_patient,
                 created_at: encrypted_patient.created_at,
                 updated_at: encrypted_patient.updated_at,
+                email_verified: encrypted_patient.email_verified,
+                verification_token: encrypted_patient.verification_token,
+                verification_token_expires: encrypted_patient.verification_token_expires,
             };
             Ok(Some(patient))
         } else {
@@ -168,6 +174,9 @@ impl Database {
                 fhir_patient,
                 created_at: encrypted_patient.created_at,
                 updated_at: encrypted_patient.updated_at,
+                email_verified: encrypted_patient.email_verified,
+                verification_token: encrypted_patient.verification_token,
+                verification_token_expires: encrypted_patient.verification_token_expires,
             };
             Ok(Some(patient))
         } else {
@@ -191,11 +200,54 @@ impl Database {
                     fhir_patient,
                     created_at: encrypted_patient.created_at,
                     updated_at: encrypted_patient.updated_at,
+                    email_verified: encrypted_patient.email_verified,
+                    verification_token: encrypted_patient.verification_token,
+                    verification_token_expires: encrypted_patient.verification_token_expires,
                 };
                 return Ok(Some(patient));
             }
         }
         Ok(None)
+    }
+
+    pub async fn find_patient_by_verification_token(&self, token: &str, encryption_key: &str) -> Result<Option<Patient>> {
+        let collection: Collection<EncryptedPatient> = self.db.collection("patients");
+        let filter = doc! { "verification_token": token };
+        if let Some(encrypted_patient) = collection.find_one(filter, None).await? {
+            let decrypted_fhir_patient_json = decrypt(&encrypted_patient.encrypted_fhir_patient, encryption_key)?;
+            let fhir_patient: FhirPatient = serde_json::from_slice(&decrypted_fhir_patient_json)?;
+
+            let patient = Patient {
+                id: encrypted_patient.id,
+                did: encrypted_patient.did,
+                fhir_patient,
+                created_at: encrypted_patient.created_at,
+                updated_at: encrypted_patient.updated_at,
+                email_verified: encrypted_patient.email_verified,
+                verification_token: encrypted_patient.verification_token,
+                verification_token_expires: encrypted_patient.verification_token_expires,
+            };
+            Ok(Some(patient))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn set_patient_email_verified(&self, did: &str, verified: bool) -> Result<()> {
+        let collection: Collection<EncryptedPatient> = self.db.collection("patients");
+        let filter = doc! { "did": did };
+        let update = doc! {
+            "$set": {
+                "email_verified": verified,
+                "updated_at": DateTime::now(),
+            },
+            "$unset": {
+                "verification_token": "",
+                "verification_token_expires": "",
+            }
+        };
+        collection.update_one(filter, update, None).await?;
+        Ok(())
     }
 
     // Practitioner operations
