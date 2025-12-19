@@ -44,6 +44,7 @@ pub trait AuthService: Send + Sync {
     async fn get_patient_by_did(&self, did: &str) -> Result<Patient>;
     async fn initiate_phone_auth(&self, request: PhoneAuthInitiateRequest) -> anyhow::Result<()>;
     async fn verify_phone_auth(&self, request: PhoneAuthVerifyRequest) -> anyhow::Result<RegistrationResponse>;
+    async fn verify_email(&self, token: &str) -> anyhow::Result<EmailVerificationResponse>;
 }
 
 pub struct AuthServiceImpl {
@@ -65,6 +66,13 @@ pub struct RegistrationResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitiateAuthResponse {
     pub user_exists: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmailVerificationResponse {
+    pub success: bool,
+    pub message: String,
+    pub patient_did: Option<String>,
 }
 
 #[derive(Debug)]
@@ -278,6 +286,70 @@ impl AuthService for AuthServiceImpl {
             }
         } else {
             Err(anyhow!("Invalid OTP"))
+        }
+    }
+
+    async fn verify_email(&self, token: &str) -> anyhow::Result<EmailVerificationResponse> {
+        // Find patient by verification token
+        let patient = self
+            .db
+            .find_patient_by_verification_token(token, &self.config.ipfs_encryption_key)
+            .await
+            .context("Failed to query database for verification token")?;
+
+        match patient {
+            Some(patient) => {
+                // Check if token has expired
+                if let Some(expires_at) = patient.verification_token_expires {
+                    if expires_at < Utc::now() {
+                        return Ok(EmailVerificationResponse {
+                            success: false,
+                            message: "Verification token has expired. Please request a new verification email.".to_string(),
+                            patient_did: None,
+                        });
+                    }
+                }
+
+                // Check if email is already verified
+                if patient.email_verified {
+                    return Ok(EmailVerificationResponse {
+                        success: true,
+                        message: "Email is already verified.".to_string(),
+                        patient_did: Some(patient.did.clone()),
+                    });
+                }
+
+                // Mark email as verified and clear verification token
+                self.db
+                    .set_patient_email_verified(&patient.did, true)
+                    .await
+                    .context("Failed to update patient email verification status")?;
+
+                // Log the verification event
+                self.audit_log_service
+                    .log(&patient.did, "email_verified", None)
+                    .await;
+
+                tracing::info!(
+                    did = %patient.did,
+                    email = %patient.fhir_patient.telecom.iter()
+                        .find(|c| c.system == "email")
+                        .map(|c| c.value.as_str())
+                        .unwrap_or("unknown"),
+                    "Email verification successful"
+                );
+
+                Ok(EmailVerificationResponse {
+                    success: true,
+                    message: "Email verified successfully.".to_string(),
+                    patient_did: Some(patient.did),
+                })
+            }
+            None => Ok(EmailVerificationResponse {
+                success: false,
+                message: "Invalid verification token.".to_string(),
+                patient_did: None,
+            }),
         }
     }
 
