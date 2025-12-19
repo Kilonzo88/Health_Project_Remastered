@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::models::*;
 use crate::services::*;
+use crate::services::auth::EmailVerificationResponse;
 use crate::state::AppState;
 use std::sync::Arc;
 use crate::services::ask_gemini;
@@ -119,6 +120,26 @@ pub async fn auth_phone_verify(
         Ok(response) => Ok(Json(ApiResponse::success(response))),
         Err(e) => {
             tracing::error!("Failed to verify phone auth: {}", e);
+            Ok(Json(ApiResponse::error(e.to_string())))
+        }
+    }
+}
+
+#[axum::debug_handler]
+pub async fn verify_email(
+    State(state): State<Arc<AppState<AuthServiceImpl>>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<ApiResponse<EmailVerificationResponse>>, StatusCode> {
+    let token = params.get("token")
+        .ok_or_else(|| {
+            tracing::error!("Missing verification token in query parameters");
+            StatusCode::BAD_REQUEST
+        })?;
+
+    match state.auth_service.verify_email(token).await {
+        Ok(response) => Ok(Json(ApiResponse::success(response))),
+        Err(e) => {
+            tracing::error!("Failed to verify email: {}", e);
             Ok(Json(ApiResponse::error(e.to_string())))
         }
     }
