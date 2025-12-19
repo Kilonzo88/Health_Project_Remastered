@@ -119,20 +119,30 @@ impl AuthService for AuthServiceImpl {
             }],
             ..Default::default()
         };
+
+        // Generate verification token and expiration time
+        let verification_token = Uuid::new_v4().to_string();
+        let verification_token_expires = Utc::now() + Duration::hours(24);
+
         let patient = Patient {
             id: None,
             did: did.clone(),
             fhir_patient,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            email_verified: false,
+            verification_token: Some(verification_token.clone()),
+            verification_token_expires: Some(verification_token_expires),
         };
+
         self.db.create_patient(&patient, &self.config.ipfs_encryption_key).await?;
         self.audit_log_service.log(&did, "register_new_user", None).await;
 
         // --- Send verification and welcome emails (fire and forget) ---
-        let verification_token = Uuid::new_v4().to_string();
-        self.email_service.send_verification_email(&request.email, &request.name, &verification_token);
-        self.email_service.send_welcome_email(&request.email, &request.name);
+        self.email_service
+            .send_verification_email(&request.email, &request.name, &verification_token);
+        self.email_service
+            .send_welcome_email(&request.email, &request.name);
 
         let token = self.generate_jwt_for_patient(&patient)?;
 
@@ -245,6 +255,9 @@ impl AuthService for AuthServiceImpl {
                     fhir_patient,
                     created_at: Utc::now(),
                     updated_at: Utc::now(),
+                    email_verified: true,
+                    verification_token: None,
+                    verification_token_expires: None,
                 };
                 self.db.create_patient(&patient, &self.config.ipfs_encryption_key).await?;
                 self.audit_log_service.log(&did, "register_new_user_phone", None).await;
@@ -346,13 +359,16 @@ impl AuthServiceImpl {
         // Build FHIR-compliant patient record
         let fhir_patient = build_fhir_patient(user_info);
 
-        // Create patient object
+        // Create patient object (Google-sign-in users are considered email-verified)
         let patient = Patient {
             id: None,
             did: did.clone(),
             fhir_patient,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            email_verified: true,
+            verification_token: None,
+            verification_token_expires: None,
         };
 
         // Persist to database
