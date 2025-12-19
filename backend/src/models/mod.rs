@@ -12,6 +12,9 @@ pub struct Patient {
     pub fhir_patient: FhirPatient,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub email_verified: bool,
+    pub verification_token: Option<String>,
+    pub verification_token_expires: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +26,9 @@ pub struct EncryptedPatient {
     pub email_hash: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub email_verified: bool,
+    pub verification_token: Option<String>,
+    pub verification_token_expires: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
