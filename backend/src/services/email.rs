@@ -102,7 +102,9 @@ impl EmailService {
     ) {
         let subject = "Email Verification";
         let template_name = "Verification-email.html";
-        let verification_link = format!("{}/api/auth/verify?token={}", self.config.frontend_base_url, token);
+        // Point verification link to FlutterFlow app
+        // FlutterFlow will handle the UI and call the backend API
+        let verification_link = format!("{}/verify-email?token={}", self.config.frontend_base_url.trim_end_matches('/'), token);
 
         let context = VerificationEmailContext {
             username: username.to_string(),
