@@ -165,20 +165,26 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/chat", post(chat));
 
     // --- Build Application ---
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], app_state.config.server_port));
+
+    // Configure CORS to allow FlutterFlow app
+    // Only the FlutterFlow frontend URL is needed since that's where your app runs
+    let frontend_url = app_state.config.frontend_base_url.trim_end_matches('/');
+    let cors = CorsLayer::new()
+        .allow_origin(frontend_url.parse::<HeaderValue>().unwrap_or_else(|_| {
+            tracing::warn!("Invalid frontend URL in config, using permissive CORS");
+            "*".parse().unwrap()
+        }))
+        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE])
+        .allow_credentials(true)
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS]);
+
     let app = Router::new()
         .merge(public_routes)
         .merge(protected_routes)
         .merge(protected_high_assurance_routes)
-        .layer(CorsLayer::permissive())
+        .layer(cors)
         .with_state(app_state.clone());
-
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], app_state.config.server_port));
-
-    let cors = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
-        .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE])
-        .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST,Method::PUT]);
 
     if app_state.config.use_tls {
         #[cfg(feature = "tls")]
