@@ -32,6 +32,7 @@ pub struct Config {
     pub gemini_api_key: String,
     pub use_tls: bool,
     pub frontend_base_url: String,
+    pub backend_base_url: String,
     pub smtp: SmtpConfig, // Added SmtpConfig here
 }
 
@@ -75,6 +76,17 @@ impl Config {
                 .parse()
                 .expect("Invalid USE_TLS value"),
             frontend_base_url: env::var("FRONTEND_BASE_URL").expect("FRONTEND_BASE_URL must be set"),
+            backend_base_url: env::var("BACKEND_BASE_URL")
+                .unwrap_or_else(|_| {
+                    // Fallback: construct from server_port and use_tls if not provided
+                    let protocol = if env::var("USE_TLS").unwrap_or_else(|_| "false".to_string()) == "true" {
+                        "https"
+                    } else {
+                        "http"
+                    };
+                    let port = env::var("SERVER_PORT").unwrap_or_else(|_| "8000".to_string());
+                    format!("{}://localhost:{}", protocol, port)
+                }),
             smtp: SmtpConfig { // Populating SmtpConfig
                 server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be set"),
                 port: env::var("SMTP_PORT")
