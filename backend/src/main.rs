@@ -156,6 +156,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health_check))
         .route("/api/auth/initiate", post(auth_initiate))
         .route("/api/auth/register", post(register))
+        .route("/api/auth/verify", get(verify_email))
         .route("/api/auth/step-up", post(step_up_auth))
         .route("/api/auth/google", post(auth_google))
         .route("/api/auth/google/verify", post(verify_google_token))
