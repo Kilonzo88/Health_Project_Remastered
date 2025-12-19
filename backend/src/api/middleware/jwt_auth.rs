@@ -67,7 +67,7 @@ pub async fn auth_middleware<T: AuthService>(
 }
 
 // Define the high-assurance authentication middleware
-pub async fn high_assurance_auth_middleware(State(state): State<Arc<AppState<AuthServiceImpl>>>, req: Request, next: Next) -> Result<Response, StatusCode> {
+pub async fn high_assurance_auth_middleware(State(_state): State<Arc<AppState<AuthServiceImpl>>>, req: Request, next: Next) -> Result<Response, StatusCode> {
     let auth_context = req.extensions().get::<AuthContext>().cloned();
 
     if let Some(auth_context) = auth_context {
