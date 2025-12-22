@@ -14,7 +14,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.32.0", features = ["full"] }
 serde_json = "1.0"
 
 # Database
@@ -72,7 +72,7 @@ rs_merkle = "1.2.1"
 blake3 = "1.5.0"
 lettre = { version = "0.11", features = ["tokio1-native-tls"] }
 google-jwt-signin = "0.5.4"
-twilio = "0.1.0"
+# twilio = "0.1.0"
 tera = "1.20.1"
 lazy_static = "1.5.0"
 
