@@ -38,7 +38,7 @@ use crate::services::ipfs::IpfsClient;
 use crate::services::hedera::{HederaClient, HealthcareHederaService};
 use crate::state::AppState;
 use crate::services::{AuthService, AuthServiceImpl, PatientService, EncounterService, VerifiableCredentialService, EmailService};
-use crate::services::twilio::TwilioService;
+// use crate::services::twilio::TwilioService;
 use crate::api::middleware::jwt_auth::{auth_middleware, high_assurance_auth_middleware};
 
 
@@ -97,14 +97,14 @@ async fn main() -> anyhow::Result<()> {
     // Initialize services
     let audit_log_service = Arc::new(AuditLogService::new(database.clone()));
     let auditing_service = Arc::new(AuditingService::new(database.clone(), hedera_service.clone()));
-    let twilio_service = Arc::new(TwilioService::new(&config));
+    // let twilio_service = Arc::new(TwilioService::new(&config));
     let email_service = Arc::new(EmailService::new(config.clone()));
     let auth_service = Arc::new(AuthServiceImpl::new(
         database.clone(), 
         hedera_client.clone(), 
         config.clone(), 
         audit_log_service.clone(), 
-        twilio_service.clone(),
+        // twilio_service.clone(),
         email_service.clone(), // Pass email_service here
     ));
     let patient_service = Arc::new(PatientService::new(database.clone(), config.clone(), audit_log_service.clone()));
@@ -121,7 +121,7 @@ async fn main() -> anyhow::Result<()> {
         auditing_service: auditing_service.clone(),
         auth_service,
         email_service, // Add email_service to AppState
-        twilio_service,
+        // twilio_service,
         patient_service,
         encounter_service,
         vc_service,
@@ -160,8 +160,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/auth/step-up", post(step_up_auth))
         .route("/api/auth/google", post(auth_google))
         .route("/api/auth/google/verify", post(verify_google_token))
-        .route("/api/auth/phone/initiate", post(auth_phone_initiate))
-        .route("/api/auth/phone/verify", post(auth_phone_verify))
+        // .route("/api/auth/phone/initiate", post(auth_phone_initiate))
+        // .route("/api/auth/phone/verify", post(auth_phone_verify))
         .route("/api/chat", post(chat));
 
     // --- Build Application ---
