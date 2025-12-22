@@ -97,33 +97,33 @@ pub async fn auth_google(
     }
 }
 
-#[axum::debug_handler]
-pub async fn auth_phone_initiate(
-    State(state): State<Arc<AppState<AuthServiceImpl>>>,
-    Json(request): Json<PhoneAuthInitiateRequest>,
-) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    match state.auth_service.initiate_phone_auth(request).await {
-        Ok(_) => Ok(Json(ApiResponse::success("OTP sent successfully".to_string()))),
-        Err(e) => {
-            tracing::error!("Failed to initiate phone auth: {}", e);
-            Ok(Json(ApiResponse::error(e.to_string())))
-        }
-    }
-}
+// #[axum::debug_handler]
+// pub async fn auth_phone_initiate(
+//     State(state): State<Arc<AppState<AuthServiceImpl>>>,
+//     Json(request): Json<PhoneAuthInitiateRequest>,
+// ) -> Result<Json<ApiResponse<String>>, StatusCode> {
+//     match state.auth_service.initiate_phone_auth(request).await {
+//         Ok(_) => Ok(Json(ApiResponse::success("OTP sent successfully".to_string()))),
+//         Err(e) => {
+//             tracing::error!("Failed to initiate phone auth: {}", e);
+//             Ok(Json(ApiResponse::error(e.to_string())))
+//         }
+//     }
+// }
 
-#[axum::debug_handler]
-pub async fn auth_phone_verify(
-    State(state): State<Arc<AppState<AuthServiceImpl>>>,
-    Json(request): Json<PhoneAuthVerifyRequest>,
-) -> Result<Json<ApiResponse<RegistrationResponse>>, StatusCode> {
-    match state.auth_service.verify_phone_auth(request).await {
-        Ok(response) => Ok(Json(ApiResponse::success(response))),
-        Err(e) => {
-            tracing::error!("Failed to verify phone auth: {}", e);
-            Ok(Json(ApiResponse::error(e.to_string())))
-        }
-    }
-}
+// #[axum::debug_handler]
+// pub async fn auth_phone_verify(
+//     State(state): State<Arc<AppState<AuthServiceImpl>>>,
+//     Json(request): Json<PhoneAuthVerifyRequest>,
+// ) -> Result<Json<ApiResponse<RegistrationResponse>>, StatusCode> {
+//     match state.auth_service.verify_phone_auth(request).await {
+//         Ok(response) => Ok(Json(ApiResponse::success(response))),
+//         Err(e) => {
+//             tracing::error!("Failed to verify phone auth: {}", e);
+//             Ok(Json(ApiResponse::error(e.to_string())))
+//         }
+//     }
+// }
 
 #[axum::debug_handler]
 pub async fn verify_email(
