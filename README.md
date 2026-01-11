@@ -1,4 +1,4 @@
-# 🏥 WeCare: Your AI-Powered, Decentralized Health Companion
+# Decentralized Health Records System
 
 **A patient-centric healthcare platform that gives you ownership of your data, powered by AI, Hedera Hashgraph, and a high-performance Rust backend.**
 
