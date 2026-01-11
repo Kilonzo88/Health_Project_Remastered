@@ -4,16 +4,6 @@
 
 ---
 
-## 🚀 Live Demo
-
-You can try a live version of the WeCare web application here.
-
-[![Run on FlutterFlow](https://flutterflow-io-6f20.kxcdn.com/assets/images/ff-badge-dark.png)](https://we-care-personal.flutterflow.app/)
-
-> **Note:** The backend features (login, AI chat) will only work if a backend server is deployed and the URL is configured in the Flutterflow app. The link above is to the frontend UI only.
-
----
-
 ## 🎯 The Problem
 
 In today's digital world, patient health data is fragmented across dozens of siloed systems. It's insecure, difficult to access, and almost impossible for patients to control. This lack of data sovereignty and interoperability hinders patient care and creates massive inefficiencies.
